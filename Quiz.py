@@ -40,32 +40,47 @@ class QuizApp:
 
     def create_first_panel(self):
         self.first_panel = tk.Frame(self.root, bg="#2E3440")
-        self.first_panel.pack(fill=tk.BOTH, expand=True)
+        self.first_panel.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+
+        # Title
+        title_label = tk.Label(self.first_panel, text="Math Quiz", bg="#2E3440", fg="#D8DEE9", font=("Arial", 24, "bold"))
+        title_label.grid(row=0, column=0, columnspan=2, pady=(0, 20))
 
         # Difficulty Selection (Checkboxes)
-        tk.Label(self.first_panel, text="Select Difficulty:", bg="#2E3440", fg="#D8DEE9", font=("Arial", 14)).pack(pady=10)
-        for difficulty, var in self.difficulty_vars.items():
-            ttk.Checkbutton(self.first_panel, text=difficulty, variable=var).pack()
+        tk.Label(self.first_panel, text="Select Difficulty:", bg="#2E3440", fg="#D8DEE9", font=("Arial", 14)).grid(row=1, column=0, sticky="w", pady=5)
+        for i, (difficulty, var) in enumerate(self.difficulty_vars.items()):
+            ttk.Checkbutton(self.first_panel, text=difficulty, variable=var, style="Dark.TCheckbutton").grid(row=2, column=i, sticky="w", padx=5)
 
         # Number of Questions
-        tk.Label(self.first_panel, text="Number of Questions:", bg="#2E3440", fg="#D8DEE9", font=("Arial", 14)).pack(pady=10)
-        ttk.Entry(self.first_panel, textvariable=self.num_questions).pack(pady=10)
+        tk.Label(self.first_panel, text="Number of Questions:", bg="#2E3440", fg="#D8DEE9", font=("Arial", 14)).grid(row=3, column=0, sticky="w", pady=5)
+        ttk.Entry(self.first_panel, textvariable=self.num_questions, style="Dark.TEntry").grid(row=3, column=1, sticky="ew", padx=5)
 
         # Enable Time Limit
-        tk.Label(self.first_panel, text="Enable Time Limit:", bg="#2E3440", fg="#D8DEE9", font=("Arial", 14)).pack(pady=10)
-        ttk.Checkbutton(self.first_panel, variable=self.enable_time).pack(pady=10)
+        tk.Label(self.first_panel, text="Enable Time Limit:", bg="#2E3440", fg="#D8DEE9", font=("Arial", 14)).grid(row=4, column=0, sticky="w", pady=5)
+        ttk.Checkbutton(self.first_panel, variable=self.enable_time, style="Dark.TCheckbutton").grid(row=4, column=1, sticky="w", padx=5)
 
         # Time per Question
-        tk.Label(self.first_panel, text="Time per Question (seconds):", bg="#2E3440", fg="#D8DEE9", font=("Arial", 14)).pack(pady=10)
-        ttk.Entry(self.first_panel, textvariable=self.time_per_question).pack(pady=10)
+        tk.Label(self.first_panel, text="Time per Question (seconds):", bg="#2E3440", fg="#D8DEE9", font=("Arial", 14)).grid(row=5, column=0, sticky="w", pady=5)
+        ttk.Entry(self.first_panel, textvariable=self.time_per_question, style="Dark.TEntry").grid(row=5, column=1, sticky="ew", padx=5)
 
         # Question Types (Checkboxes)
-        tk.Label(self.first_panel, text="Select Question Types:", bg="#2E3440", fg="#D8DEE9", font=("Arial", 14)).pack(pady=10)
-        for q_type, var in self.question_types.items():
-            ttk.Checkbutton(self.first_panel, text=q_type, variable=var).pack()
+        tk.Label(self.first_panel, text="Select Question Types:", bg="#2E3440", fg="#D8DEE9", font=("Arial", 14)).grid(row=6, column=0, sticky="w", pady=5)
+        question_types_frame = tk.Frame(self.first_panel, bg="#2E3440")
+        question_types_frame.grid(row=7, column=0, columnspan=2, sticky="w")
+
+        ttk.Checkbutton(question_types_frame, text="Addition", variable=self.question_types["Addition"], style="Dark.TCheckbutton").grid(row=0, column=0, sticky="w", padx=5)
+        ttk.Checkbutton(question_types_frame, text="Subtraction", variable=self.question_types["Subtraction"], style="Dark.TCheckbutton").grid(row=0, column=1, sticky="w", padx=5)
+        ttk.Checkbutton(question_types_frame, text="Multiplication", variable=self.question_types["Multiplication"], style="Dark.TCheckbutton").grid(row=1, column=0, sticky="w", padx=5)
+        ttk.Checkbutton(question_types_frame, text="Division", variable=self.question_types["Division"], style="Dark.TCheckbutton").grid(row=1, column=1, sticky="w", padx=5)
 
         # Start Quiz Button
-        ttk.Button(self.first_panel, text="Start Quiz", command=self.start_quiz).pack(pady=20)
+        ttk.Button(self.first_panel, text="Start Quiz", command=self.start_quiz, style="Dark.TButton").grid(row=8, column=0, columnspan=2, pady=20)
+
+        # Configure grid weights for responsive design
+        for i in range(9):
+            self.first_panel.grid_rowconfigure(i, weight=1)
+        for j in range(2):
+            self.first_panel.grid_columnconfigure(j, weight=1)
 
     def start_quiz(self):
         # Validate selections
@@ -153,19 +168,19 @@ class QuizApp:
 
     def create_quiz_panel(self):
         self.quiz_panel = tk.Frame(self.root, bg="#2E3440")
-        self.quiz_panel.pack(fill=tk.BOTH, expand=True)
+        self.quiz_panel.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
 
         self.question_label = tk.Label(self.quiz_panel, text="", bg="#2E3440", fg="#D8DEE9", font=("Arial", 18))
         self.question_label.pack(pady=20)
 
-        self.answer_entry = ttk.Entry(self.quiz_panel, font=("Arial", 14))
+        self.answer_entry = ttk.Entry(self.quiz_panel, font=("Arial", 14), style="Dark.TEntry")
         self.answer_entry.pack(pady=20)
         self.answer_entry.bind("<Return>", lambda event: self.next_question())  # Submit on Enter key
 
         self.timer_label = tk.Label(self.quiz_panel, text="", bg="#2E3440", fg="#D8DEE9", font=("Arial", 14))
         self.timer_label.pack(pady=10)
 
-        self.next_button = ttk.Button(self.quiz_panel, text="Next", command=self.next_question)
+        self.next_button = ttk.Button(self.quiz_panel, text="Next", command=self.next_question, style="Dark.TButton")
         self.next_button.pack(pady=20)
 
         self.start_time = time.time()
@@ -211,9 +226,9 @@ class QuizApp:
 
     def create_stats_panel(self):
         self.stats_panel = tk.Frame(self.root, bg="#2E3440")
-        self.stats_panel.pack(fill=tk.BOTH, expand=True)
+        self.stats_panel.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
 
-        tk.Label(self.stats_panel, text="Quiz Statistics", bg="#2E3440", fg="#D8DEE9", font=("Arial", 20)).pack(pady=20)
+        tk.Label(self.stats_panel, text="Quiz Statistics", bg="#2E3440", fg="#D8DEE9", font=("Arial", 24, "bold")).pack(pady=20)
 
         stats_text = f"Total Questions: {len(self.questions)}\n" \
                      f"Correct Answers: {self.correct_answers}\n" \
@@ -232,7 +247,7 @@ class QuizApp:
         canvas.get_tk_widget().pack(pady=20)
 
         # Restart Quiz Button
-        ttk.Button(self.stats_panel, text="Restart Quiz", command=self.restart_quiz).pack(pady=20)
+        ttk.Button(self.stats_panel, text="Restart Quiz", command=self.restart_quiz, style="Dark.TButton").pack(pady=20)
 
     def restart_quiz(self):
         self.stats_panel.destroy()
@@ -240,5 +255,9 @@ class QuizApp:
 
 if __name__ == "__main__":
     root = tk.Tk()
+    style = ttk.Style()
+    style.configure("Dark.TCheckbutton", background="#2E3440", foreground="#D8DEE9")
+    style.configure("Dark.TEntry", fieldbackground="#3B4252", foreground="#D8DEE9")
+    style.configure("Dark.TButton", background="#4C566A", foreground="#D8DEE9", font=("Arial", 12))
     app = QuizApp(root)
     root.mainloop()
