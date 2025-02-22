@@ -1,182 +1,244 @@
 import tkinter as tk
+from tkinter import ttk, messagebox
 import random
 import time
-from tkinter import messagebox, ttk
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-class MathQuiz:
+class QuizApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("🧠 Mental Math Quiz 🎯")
-        self.root.geometry("600x500")
-        self.root.config(bg="#282c36")
+        self.root.title("Math Quiz")
+        self.root.geometry("800x600")
+        self.root.configure(bg="#2E3440")  # Dark background for color grading
 
-        self.score = 0
-        self.total_questions = 0
+        # Variables
+        self.difficulty_vars = {
+            "Easy": tk.BooleanVar(value=False),
+            "Medium": tk.BooleanVar(value=False),
+            "Hard": tk.BooleanVar(value=False)
+        }
+        self.num_questions = tk.IntVar(value=10)
+        self.enable_time = tk.BooleanVar(value=False)
+        self.time_per_question = tk.IntVar(value=10)
+        self.question_types = {
+            "Addition": tk.BooleanVar(value=False),
+            "Subtraction": tk.BooleanVar(value=False),
+            "Multiplication": tk.BooleanVar(value=False),
+            "Division": tk.BooleanVar(value=False)
+        }
+
+        self.questions = []
         self.current_question = 0
-        self.history = []
-        self.types_selected = []
-        self.time_per_question = None
-        self.max_questions = None
-        self.time_left = None
-        self.correct_answer = None
+        self.correct_answers = 0
+        self.incorrect_answers = 0
+        self.unattempted = 0
+        self.start_time = 0
+        self.time_consumed = []
 
-        self.create_main_menu()
+        self.create_first_panel()
 
-    def create_main_menu(self):
-        """Creates the quiz settings panel where the user selects options."""
-        self.clear_window()
-        tk.Label(self.root, text="🎯 Select Quiz Options 🏆", font=("Arial", 18, "bold"), bg="#282c36", fg="white").pack(pady=10)
+    def create_first_panel(self):
+        self.first_panel = tk.Frame(self.root, bg="#2E3440")
+        self.first_panel.pack(fill=tk.BOTH, expand=True)
 
-        self.types_selected = []  
+        # Difficulty Selection (Checkboxes)
+        tk.Label(self.first_panel, text="Select Difficulty:", bg="#2E3440", fg="#D8DEE9", font=("Arial", 14)).pack(pady=10)
+        for difficulty, var in self.difficulty_vars.items():
+            ttk.Checkbutton(self.first_panel, text=difficulty, variable=var).pack()
 
-        self.addition_var = tk.BooleanVar()
-        self.subtraction_var = tk.BooleanVar()
-        self.multiplication_var = tk.BooleanVar()
-        self.division_var = tk.BooleanVar()
+        # Number of Questions
+        tk.Label(self.first_panel, text="Number of Questions:", bg="#2E3440", fg="#D8DEE9", font=("Arial", 14)).pack(pady=10)
+        ttk.Entry(self.first_panel, textvariable=self.num_questions).pack(pady=10)
 
-        tk.Checkbutton(self.root, text="➕ Addition", variable=self.addition_var, bg="#282c36", fg="white", selectcolor="black").pack()
-        tk.Checkbutton(self.root, text="➖ Subtraction", variable=self.subtraction_var, bg="#282c36", fg="white", selectcolor="black").pack()
-        tk.Checkbutton(self.root, text="✖ Multiplication", variable=self.multiplication_var, bg="#282c36", fg="white", selectcolor="black").pack()
-        tk.Checkbutton(self.root, text="➗ Division", variable=self.division_var, bg="#282c36", fg="white", selectcolor="black").pack()
+        # Enable Time Limit
+        tk.Label(self.first_panel, text="Enable Time Limit:", bg="#2E3440", fg="#D8DEE9", font=("Arial", 14)).pack(pady=10)
+        ttk.Checkbutton(self.first_panel, variable=self.enable_time).pack(pady=10)
 
-        tk.Label(self.root, text="⏳ Time per question (seconds):", bg="#282c36", fg="white", font=("Arial", 12)).pack(pady=5)
-        self.time_per_question_entry = tk.Entry(self.root, font=("Arial", 12))
-        self.time_per_question_entry.pack()
-        self.time_per_question_entry.insert(0, "10")  
+        # Time per Question
+        tk.Label(self.first_panel, text="Time per Question (seconds):", bg="#2E3440", fg="#D8DEE9", font=("Arial", 14)).pack(pady=10)
+        ttk.Entry(self.first_panel, textvariable=self.time_per_question).pack(pady=10)
 
-        tk.Label(self.root, text="🔢 Total number of questions:", bg="#282c36", fg="white", font=("Arial", 12)).pack(pady=5)
-        self.max_questions_entry = tk.Entry(self.root, font=("Arial", 12))
-        self.max_questions_entry.pack()
-        self.max_questions_entry.insert(0, "10")  
+        # Question Types (Checkboxes)
+        tk.Label(self.first_panel, text="Select Question Types:", bg="#2E3440", fg="#D8DEE9", font=("Arial", 14)).pack(pady=10)
+        for q_type, var in self.question_types.items():
+            ttk.Checkbutton(self.first_panel, text=q_type, variable=var).pack()
 
-        tk.Button(self.root, text="🚀 Start Quiz", command=self.start_quiz, bg="green", fg="white", font=("Arial", 14)).pack(pady=15)
+        # Start Quiz Button
+        ttk.Button(self.first_panel, text="Start Quiz", command=self.start_quiz).pack(pady=20)
 
     def start_quiz(self):
-        """Starts the quiz with the selected options."""
-        self.types_selected = []
-        if self.addition_var.get():
-            self.types_selected.append("addition")
-        if self.subtraction_var.get():
-            self.types_selected.append("subtraction")
-        if self.multiplication_var.get():
-            self.types_selected.append("multiplication")
-        if self.division_var.get():
-            self.types_selected.append("division")
-
-        if not self.types_selected:
-            messagebox.showerror("Error", "❌ Select at least one question type!")
+        # Validate selections
+        if not any(var.get() for var in self.difficulty_vars.values()):
+            messagebox.showwarning("Warning", "Please select at least one difficulty level.")
+            return
+        if not any(var.get() for var in self.question_types.values()):
+            messagebox.showwarning("Warning", "Please select at least one question type.")
             return
 
-        try:
-            self.time_per_question = int(self.time_per_question_entry.get())
-            self.max_questions = int(self.max_questions_entry.get())
-        except ValueError:
-            messagebox.showerror("Error", "⚠️ Enter valid numbers!")
-            return
-
-        self.score = 0
-        self.total_questions = 0
+        self.questions = self.generate_questions()
         self.current_question = 0
-        self.history = []
+        self.correct_answers = 0
+        self.incorrect_answers = 0
+        self.unattempted = 0
+        self.time_consumed = []
 
-        self.ask_question()
+        self.first_panel.destroy()
+        self.create_quiz_panel()
 
-    def ask_question(self):
-        """Generates and displays a new question."""
-        if self.current_question >= self.max_questions:
-            self.end_quiz()
-            return
+    def generate_questions(self):
+        questions = []
+        for _ in range(self.num_questions.get()):
+            # Select a random difficulty level
+            selected_difficulty = random.choice([k for k, v in self.difficulty_vars.items() if v.get()])
+            # Select a random question type
+            q_type = random.choice([k for k, v in self.question_types.items() if v.get()])
 
-        self.clear_window()
-        self.current_question += 1
-        question, self.correct_answer = self.generate_question()
+            if q_type == "Addition":
+                if selected_difficulty == "Easy":
+                    a = random.randint(1, 50)
+                    b = random.randint(1, 50)
+                elif selected_difficulty == "Medium":
+                    a = random.randint(50, 100)
+                    b = random.randint(50, 100)
+                else:  # Hard
+                    a = random.randint(100, 200)
+                    b = random.randint(100, 200)
+                question = f"{a} + {b} = ?"
+                answer = a + b
+            elif q_type == "Subtraction":
+                if selected_difficulty == "Easy":
+                    a = random.randint(1, 50)
+                    b = random.randint(1, a)
+                elif selected_difficulty == "Medium":
+                    a = random.randint(50, 100)
+                    b = random.randint(1, a)
+                else:  # Hard
+                    a = random.randint(100, 200)
+                    b = random.randint(1, a)
+                question = f"{a} - {b} = ?"
+                answer = a - b
+            elif q_type == "Multiplication":
+                if selected_difficulty == "Easy":
+                    a = random.randint(1, 10)
+                    b = random.randint(1, 10)
+                elif selected_difficulty == "Medium":
+                    a = random.randint(10, 20)
+                    b = random.randint(10, 20)
+                else:  # Hard
+                    a = random.randint(20, 30)
+                    b = random.randint(20, 30)
+                question = f"{a} * {b} = ?"
+                answer = a * b
+            elif q_type == "Division":
+                if selected_difficulty == "Easy":
+                    a = random.randint(1, 50)
+                    b = random.randint(1, a)
+                    while a % b != 0:
+                        b = random.randint(1, a)
+                elif selected_difficulty == "Medium":
+                    a = random.randint(50, 100)
+                    b = random.randint(1, a)
+                    while a % b != 0:
+                        b = random.randint(1, a)
+                else:  # Hard
+                    a = random.randint(100, 200)
+                    b = random.randint(1, a)
+                    while a % b != 0:
+                        b = random.randint(1, a)
+                question = f"{a} / {b} = ?"
+                answer = a // b
+            questions.append((question, answer))
+        return questions
 
-        tk.Label(self.root, text=f"📌 Question {self.current_question}/{self.max_questions}", font=("Arial", 16), bg="#282c36", fg="yellow").pack(pady=5)
-        tk.Label(self.root, text=question, font=("Arial", 22, "bold"), bg="#282c36", fg="white").pack(pady=10)
+    def create_quiz_panel(self):
+        self.quiz_panel = tk.Frame(self.root, bg="#2E3440")
+        self.quiz_panel.pack(fill=tk.BOTH, expand=True)
 
-        self.answer_entry = tk.Entry(self.root, font=("Arial", 16))
-        self.answer_entry.pack(pady=5)
-        self.answer_entry.focus()
+        self.question_label = tk.Label(self.quiz_panel, text="", bg="#2E3440", fg="#D8DEE9", font=("Arial", 18))
+        self.question_label.pack(pady=20)
 
-        tk.Button(self.root, text="✅ Submit", command=self.check_answer, bg="blue", fg="white", font=("Arial", 14)).pack(pady=10)
-        tk.Button(self.root, text="❌ End Quiz", command=self.end_quiz, bg="red", fg="white", font=("Arial", 12)).pack(pady=5)
+        self.answer_entry = ttk.Entry(self.quiz_panel, font=("Arial", 14))
+        self.answer_entry.pack(pady=20)
+        self.answer_entry.bind("<Return>", lambda event: self.next_question())  # Submit on Enter key
 
-        self.time_left = self.time_per_question
-        self.time_label = tk.Label(self.root, text=f"⏳ Time Left: {self.time_left} sec", font=("Arial", 12), bg="#282c36", fg="white")
-        self.time_label.pack()
+        self.timer_label = tk.Label(self.quiz_panel, text="", bg="#2E3440", fg="#D8DEE9", font=("Arial", 14))
+        self.timer_label.pack(pady=10)
 
-        self.time_bar = ttk.Progressbar(self.root, orient="horizontal", length=300, mode="determinate")
-        self.time_bar.pack(pady=5)
+        self.next_button = ttk.Button(self.quiz_panel, text="Next", command=self.next_question)
+        self.next_button.pack(pady=20)
 
+        self.start_time = time.time()
         self.update_timer()
+        self.show_question()
+
+    def show_question(self):
+        if self.current_question < len(self.questions):
+            self.question_label.config(text=self.questions[self.current_question][0])
+            self.answer_entry.delete(0, tk.END)
+            self.start_time = time.time()
+        else:
+            self.show_stats()
+
+    def next_question(self):
+        user_answer = self.answer_entry.get()
+        if user_answer:
+            correct_answer = self.questions[self.current_question][1]
+            if int(user_answer) == correct_answer:
+                self.correct_answers += 1
+            else:
+                self.incorrect_answers += 1
+            self.time_consumed.append(time.time() - self.start_time)
+        else:
+            self.unattempted += 1
+            self.time_consumed.append(0)
+
+        self.current_question += 1
+        self.show_question()
 
     def update_timer(self):
-        """Updates the countdown timer and progress bar."""
-        if self.time_left > 0:
-            self.time_left -= 1
-            self.time_label.config(text=f"⏳ Time Left: {self.time_left} sec")
-            self.time_bar['value'] = (self.time_left / self.time_per_question) * 100
+        if self.enable_time.get() and self.current_question < len(self.questions):
+            elapsed_time = time.time() - self.start_time
+            remaining_time = max(0, self.time_per_question.get() - int(elapsed_time))
+            self.timer_label.config(text=f"Time Left: {remaining_time} seconds")
+            if remaining_time == 0:
+                self.next_question()
             self.root.after(1000, self.update_timer)
-        else:
-            self.check_answer(auto_fail=True)
 
-    def generate_question(self):
-        """Generates a random math question based on selected types."""
-        num1 = random.randint(1, 20)
-        num2 = random.randint(1, 20)
-        q_type = random.choice(self.types_selected)
+    def show_stats(self):
+        self.quiz_panel.destroy()
+        self.create_stats_panel()
 
-        if q_type == "addition":
-            return f"{num1} + {num2} =", num1 + num2
-        elif q_type == "subtraction":
-            if random.choice([True, False]):  
-                num1, num2 = num2, num1
-            return f"{num1} - {num2} =", num1 - num2
-        elif q_type == "multiplication":
-            return f"{num1} × {num2} =", num1 * num2
-        elif q_type == "division":
-            num1 = num1 * num2  
-            return f"{num1} ÷ {num2} =", num1 // num2
+    def create_stats_panel(self):
+        self.stats_panel = tk.Frame(self.root, bg="#2E3440")
+        self.stats_panel.pack(fill=tk.BOTH, expand=True)
 
-    def check_answer(self, auto_fail=False):
-        """Checks the user's answer and updates the score."""
-        if auto_fail:
-            self.history.append((self.current_question, "❌ No Answer", self.correct_answer, False))
-            self.ask_question()
-            return
+        tk.Label(self.stats_panel, text="Quiz Statistics", bg="#2E3440", fg="#D8DEE9", font=("Arial", 20)).pack(pady=20)
 
-        user_answer = self.answer_entry.get().strip()
-        try:
-            user_answer = int(user_answer)
-        except ValueError:
-            messagebox.showerror("Error", "⚠️ Enter a valid number!")
-            return
+        stats_text = f"Total Questions: {len(self.questions)}\n" \
+                     f"Correct Answers: {self.correct_answers}\n" \
+                     f"Incorrect Answers: {self.incorrect_answers}\n" \
+                     f"Unattempted: {self.unattempted}"
+        tk.Label(self.stats_panel, text=stats_text, bg="#2E3440", fg="#D8DEE9", font=("Arial", 14)).pack(pady=20)
 
-        is_correct = user_answer == self.correct_answer
-        self.score += 1 if is_correct else 0
-        self.history.append((self.current_question, user_answer, self.correct_answer, is_correct))
+        # Bar Chart
+        fig, ax = plt.subplots()
+        ax.bar(["Correct", "Incorrect", "Unattempted"], [self.correct_answers, self.incorrect_answers, self.unattempted], color=["#4CAF50", "#F44336", "#FFC107"])
+        ax.set_ylabel("Number of Questions")
+        ax.set_title("Quiz Results")
 
-        self.ask_question()
+        canvas = FigureCanvasTkAgg(fig, master=self.stats_panel)
+        canvas.draw()
+        canvas.get_tk_widget().pack(pady=20)
 
-    def end_quiz(self):
-        """Displays the quiz results with a summary of correct and incorrect answers."""
-        self.clear_window()
-        tk.Label(self.root, text="🏆 Quiz Summary 🏆", font=("Arial", 18, "bold"), bg="#282c36", fg="white").pack(pady=10)
-        tk.Label(self.root, text=f"🎯 Score: {self.score}/{self.max_questions}", font=("Arial", 16), bg="#282c36", fg="yellow").pack()
+        # Restart Quiz Button
+        ttk.Button(self.stats_panel, text="Restart Quiz", command=self.restart_quiz).pack(pady=20)
 
-        for q_num, user_ans, correct_ans, is_correct in self.history:
-            color = "green" if is_correct else "red"
-            tk.Label(self.root, text=f"Q{q_num}: Your Ans: {user_ans} | Correct: {correct_ans}", fg=color, bg="#282c36", font=("Arial", 12)).pack()
-
-        tk.Button(self.root, text="🔄 Restart", command=self.create_main_menu, bg="blue", fg="white", font=("Arial", 14)).pack(pady=10)
-        tk.Button(self.root, text="❌ Exit", command=self.root.quit, bg="red", fg="white", font=("Arial", 14)).pack()
-
-    def clear_window(self):
-        """Removes all widgets from the window."""
-        for widget in self.root.winfo_children():
-            widget.destroy()
+    def restart_quiz(self):
+        self.stats_panel.destroy()
+        self.create_first_panel()
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = MathQuiz(root)
+    app = QuizApp(root)
     root.mainloop()
